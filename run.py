@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import User, Product, Payment, Order, Cart, Category
+from app.models import User, Product, Payment, Order, CartItem, Category
 
 app = create_app()
 

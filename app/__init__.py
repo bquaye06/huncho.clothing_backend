@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, app
 from flask_sqlalchemy import SQLAlchemy
 from datetime import timedelta
 from flask_mail import Mail
@@ -36,9 +36,11 @@ def create_app():
     # Mail Configuration
     app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
     app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT'))
-    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS') == 'True'
+    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'False').lower() == 'true'
+    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true'
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
     
     # Initialize extensions
     db.init_app(app)
@@ -46,15 +48,19 @@ def create_app():
     jwt.init_app(app)
     migrate.init_app(app, db)  
     
-    api = Api(app)
+   
 
     
     # Import and register resources
-    from app.resources.auth_resource import RegisterResource
+    from app.resources.auth_resource import RegisterResource, VerifyUserResource, LoginResource
     
+    
+    api = Api(app)
     
     # Auth Resource
     api.add_resource(RegisterResource, '/auth/register')
+    api.add_resource(VerifyUserResource, '/auth/verify')
+    api.add_resource(LoginResource, '/auth/login')
     
     
     return app
