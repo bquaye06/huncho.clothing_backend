@@ -52,7 +52,8 @@ def create_app():
 
     
     # Import and register resources
-    from app.resources.auth_resource import RegisterResource, VerifyUserResource, LoginResource
+    from app.resources.auth_resource import RegisterResource, VerifyUserResource, LoginResource, ForgotPasswordResource, ResetPasswordResource
+    from app.resources.user_resource import UserProfileResource
     
     
     api = Api(app)
@@ -61,6 +62,11 @@ def create_app():
     api.add_resource(RegisterResource, '/auth/register')
     api.add_resource(VerifyUserResource, '/auth/verify')
     api.add_resource(LoginResource, '/auth/login')
+    api.add_resource(ForgotPasswordResource, '/auth/forgot-password')
+    api.add_resource(ResetPasswordResource, '/auth/reset-password')
+    
+    # User Resource
+    api.add_resource(UserProfileResource, '/user/profile')
     
     
     return app

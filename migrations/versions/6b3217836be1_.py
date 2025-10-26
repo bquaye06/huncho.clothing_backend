@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 4f7e0f21eaa2
-Revises: 
-Create Date: 2025-10-24 20:52:00.327963
+Revision ID: 6b3217836be1
+Revises: 2cb8bb3a3609
+Create Date: 2025-10-25 20:40:04.385941
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '4f7e0f21eaa2'
-down_revision = None
+revision = '6b3217836be1'
+down_revision = '2cb8bb3a3609'
 branch_labels = None
 depends_on = None
 
@@ -66,9 +66,11 @@ def upgrade():
     sa.Column('last_name', sa.String(length=150), nullable=True),
     sa.Column('date_of_birth', sa.Date(), nullable=True),
     sa.Column('country', sa.String(length=150), nullable=True),
+    sa.Column('phone_number', sa.String(length=20), nullable=True),
     sa.Column('is_verified', sa.Boolean(), nullable=True),
     sa.Column('verification_code', sa.String(length=10), nullable=True),
     sa.Column('password_hash', sa.Text(), nullable=True),
+    sa.Column('reset_code', sa.String(length=10), nullable=True),
     sa.Column('role', sa.String(length=20), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
@@ -107,11 +109,10 @@ def upgrade():
     sa.UniqueConstraint('user_id', 'product_id', name='unique_user_product'),
     schema='cart'
     )
+    op.drop_table('cart_items')
+    op.drop_table('payment_table')
     op.drop_table('order_table')
     op.drop_table('products_table')
-    op.drop_table('categories_table')
-    op.drop_table('payment_table')
-    op.drop_table('cart_items')
     op.drop_table('users_table')
     # ### end Alembic commands ###
 
@@ -138,12 +139,30 @@ def downgrade():
     sa.UniqueConstraint('username', name='users_table_username_key'),
     postgresql_ignore_search_path=False
     )
-    op.create_table('cart_items',
-    sa.Column('cart_id', sa.BIGINT(), autoincrement=True, nullable=False),
-    sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=False),
+    op.create_table('products_table',
+    sa.Column('product_id', sa.BIGINT(), autoincrement=True, nullable=False),
+    sa.Column('name', sa.VARCHAR(length=150), autoincrement=False, nullable=False),
+    sa.Column('description', sa.TEXT(), autoincrement=False, nullable=True),
+    sa.Column('price', sa.NUMERIC(precision=10, scale=2), autoincrement=False, nullable=False),
+    sa.Column('stock', sa.INTEGER(), autoincrement=False, nullable=False),
+    sa.Column('quantity', sa.INTEGER(), autoincrement=False, nullable=False),
+    sa.Column('brand', sa.VARCHAR(length=100), autoincrement=False, nullable=True),
+    sa.Column('size', sa.VARCHAR(length=50), autoincrement=False, nullable=True),
+    sa.Column('image_url', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
+    sa.Column('category_id', sa.BIGINT(), autoincrement=False, nullable=True),
     sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users_table.user_id'], name=op.f('cart_items_user_id_fkey'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('cart_id', name=op.f('cart_items_pkey'))
+    sa.PrimaryKeyConstraint('product_id', name=op.f('products_table_pkey'))
+    )
+    op.create_table('order_table',
+    sa.Column('order_id', sa.BIGINT(), server_default=sa.text("nextval('order_table_order_id_seq'::regclass)"), autoincrement=True, nullable=False),
+    sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=True),
+    sa.Column('total_amount', sa.NUMERIC(precision=10, scale=2), autoincrement=False, nullable=False),
+    sa.Column('status', sa.VARCHAR(length=50), autoincrement=False, nullable=True),
+    sa.Column('shipping_address', sa.TEXT(), autoincrement=False, nullable=True),
+    sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['users_table.user_id'], name='order_table_user_id_fkey', ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('order_id', name='order_table_pkey'),
+    postgresql_ignore_search_path=False
     )
     op.create_table('payment_table',
     sa.Column('payment_id', sa.BIGINT(), autoincrement=True, nullable=False),
@@ -157,39 +176,12 @@ def downgrade():
     sa.ForeignKeyConstraint(['user_id'], ['users_table.user_id'], name=op.f('payment_table_user_id_fkey'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('payment_id', name=op.f('payment_table_pkey'))
     )
-    op.create_table('categories_table',
-    sa.Column('category_id', sa.BIGINT(), server_default=sa.text("nextval('categories_table_category_id_seq'::regclass)"), autoincrement=True, nullable=False),
-    sa.Column('name', sa.VARCHAR(length=100), autoincrement=False, nullable=False),
-    sa.Column('description', sa.TEXT(), autoincrement=False, nullable=True),
+    op.create_table('cart_items',
+    sa.Column('cart_id', sa.BIGINT(), autoincrement=True, nullable=False),
+    sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=False),
     sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.PrimaryKeyConstraint('category_id', name='categories_table_pkey'),
-    sa.UniqueConstraint('name', name='categories_table_name_key'),
-    postgresql_ignore_search_path=False
-    )
-    op.create_table('products_table',
-    sa.Column('product_id', sa.BIGINT(), autoincrement=True, nullable=False),
-    sa.Column('name', sa.VARCHAR(length=150), autoincrement=False, nullable=False),
-    sa.Column('description', sa.TEXT(), autoincrement=False, nullable=True),
-    sa.Column('price', sa.NUMERIC(precision=10, scale=2), autoincrement=False, nullable=False),
-    sa.Column('stock', sa.INTEGER(), autoincrement=False, nullable=False),
-    sa.Column('quantity', sa.INTEGER(), autoincrement=False, nullable=False),
-    sa.Column('brand', sa.VARCHAR(length=100), autoincrement=False, nullable=True),
-    sa.Column('size', sa.VARCHAR(length=50), autoincrement=False, nullable=True),
-    sa.Column('image_url', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
-    sa.Column('category_id', sa.BIGINT(), autoincrement=False, nullable=True),
-    sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.ForeignKeyConstraint(['category_id'], ['categories_table.category_id'], name=op.f('products_table_category_id_fkey'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('product_id', name=op.f('products_table_pkey'))
-    )
-    op.create_table('order_table',
-    sa.Column('order_id', sa.BIGINT(), autoincrement=True, nullable=False),
-    sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=True),
-    sa.Column('total_amount', sa.NUMERIC(precision=10, scale=2), autoincrement=False, nullable=False),
-    sa.Column('status', sa.VARCHAR(length=50), autoincrement=False, nullable=True),
-    sa.Column('shipping_address', sa.TEXT(), autoincrement=False, nullable=True),
-    sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users_table.user_id'], name=op.f('order_table_user_id_fkey'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('order_id', name=op.f('order_table_pkey'))
+    sa.ForeignKeyConstraint(['user_id'], ['users_table.user_id'], name=op.f('cart_items_user_id_fkey'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('cart_id', name=op.f('cart_items_pkey'))
     )
     op.drop_table('cart_items', schema='cart')
     op.drop_table('products_table', schema='products')

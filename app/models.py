@@ -17,9 +17,11 @@ class User(db.Model):
     last_name = db.Column(db.String(150), nullable=True)
     date_of_birth = db.Column(db.Date, nullable=True)
     country = db.Column(db.String(150), nullable=True)
+    phone_number = db.Column(db.String(20), nullable=True)
     is_verified = db.Column(db.Boolean, default=False)
     verification_code = db.Column(db.String(10), nullable=True)
     password_hash = db.Column(db.Text, nullable=True)
+    reset_code = db.Column(db.String(10), nullable=True)
     role = db.Column(db.String(20), default='customer')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -36,11 +38,14 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self):
+    def user_to_dict(self):
         return {
-            "user_id": self.user_id,
             "username": self.username,
+            "first_name" : self.first_name,
+            "middle_name": self.middle_name,
+            "last_name": self.last_name,
             "email": self.email,
+            "phone_number": self.phone_number,
             "role": self.role,
             "created_at": self.created_at.isoformat(),
         }

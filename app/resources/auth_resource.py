@@ -5,6 +5,7 @@ from werkzeug.security import check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token
 from app.models import db, User
 from flask_mail import Message
+from app.utils.sms_service import send_sms
 from app import mail
 from datetime import datetime
 import string
@@ -20,6 +21,7 @@ class RegisterResource(Resource):
         first_name = data.get('first_name')
         middle_name = data.get('middle_name')
         last_name = data.get('last_name')
+        phone_number = data.get('phone_number')
         date_of_birth = data.get('date_of_birth')
         country = data.get('country')
         
@@ -37,6 +39,7 @@ class RegisterResource(Resource):
         new_user = User(
             username=username,
             email=email,
+            phone_number=phone_number,
             first_name=first_name,
             middle_name=middle_name,
             last_name=last_name,
@@ -64,13 +67,34 @@ class RegisterResource(Resource):
             recipients=[email],
             body=f"Good day {username}, \n\nYour verification code is: {otp}\n\nThanks for signing up with hunchØ.clothing, happy shopping"
         )
-        mail.send(msg)
+        try:
+            mail.send(msg)
+        except UnicodeEncodeError as e:
+            # Most likely caused by non-ASCII characters in MAIL_USERNAME or MAIL_PASSWORD
+            print(f"Email send failed due to non-ASCII credentials: {e}")
+            return {
+                "message": (
+                    "Failed to send verification email: non-ASCII characters detected in mail credentials. "
+                    "Ensure MAIL_USERNAME and MAIL_PASSWORD contain only ASCII characters (0-127)."
+                )
+            }, 500
+        except Exception as e:
+            # Generic email send failure
+            print(f"Error sending email: {e}")
+            return {"message": "Failed to send verification email."}, 500
+        
+        # Send OTP to user's phone number via SMS if phone number is provided
+        if phone_number:
+            message = f"Your verification code for hunchØ.clothing is: {otp}"
+            sms_sent = send_sms(phone_number, message)
+            if not sms_sent:
+                print(f"Failed to send SMS to {phone_number}")
 
         print(f"Verification OTP for {email}: {otp}")
         
         return{
             'Success': True,
-            "message" : "User registered. Check email for OTP code."
+            "message" : "User registered. Check email or SMS for OTP code."
         }, 201
         
 # Verify User OTP
@@ -110,7 +134,7 @@ class VerifyUserResource(Resource):
             }, 200
                 
 
-# Login Resource with JWT tokens
+# Login Resource with JWT tokens and OTP
 class LoginResource(Resource):
     def post(self):
         data = request.get_json()
@@ -136,9 +160,10 @@ class LoginResource(Resource):
         if not check_password_hash(user.password_hash,password):
             return {'message': 'Invalid email or password'}, 401
         
+        
         # create JWT tokens
-        access_token = create_access_token(identity=user.user_id)
-        refresh_token = create_refresh_token(identity=user.user_id)
+        access_token = create_access_token(identity=str(user.user_id))
+        refresh_token = create_refresh_token(identity=str(user.user_id))
         
         # return success message if successfull
         return{
@@ -147,4 +172,86 @@ class LoginResource(Resource):
             'refresh_token': refresh_token
             
         }, 200
+
+# Forgot Password Resource
+# Sends reset OTP to user's email to reset password
+class ForgotPasswordResource(Resource):
+    def post(self):
+        data = request.get_json()
+        email = data.get('email') if data else None
+
+        # validate required fields
+        if not email:
+            return {'message': 'Email is required'}, 400
+
+        # find user by email
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return {'message': 'User not found'}, 404
+
+        # generate and save OTP
+        otp = ''.join(random.choices(string.digits, k=6))
+        user.reset_code = otp
+        db.session.commit()
+
+        # prepare and send email
+        # Send  reset OTP to user's email and also print in the console for easy shit
+        msg = Message(
+            subject="Reset code for hunchØ.clothing.",
+            recipients=[email],
+            body=f"Good day {user.username}, \n\nYour reset code is: {otp}\n\nThanks for signing up with hunchØ.clothing, happy shopping"
+        )
+        try:
+            mail.send(msg)
+        except UnicodeEncodeError as e:
+            # Most likely caused by non-ASCII characters in MAIL_USERNAME or MAIL_PASSWORD
+            print(f"Email send failed due to non-ASCII credentials: {e}")
+            return {
+                "message": (
+                    "Failed to send password reset email: non-ASCII characters detected in mail credentials. "
+                    "Ensure MAIL_USERNAME and MAIL_PASSWORD contain only ASCII characters (0-127)."
+                )
+            }, 500
+        except Exception as e:
+            # Generic email send failure
+            print(f"Error sending email: {e}")
+            return {"message": "Failed to send password reset email."}, 500
+
         
+        print(f"Password reset OTP for {email}: {otp}")
+
+        return {
+            'Success': True,
+            'message': 'Password reset OTP sent to email (and printed to server log).'
+        }, 200
+
+# Reset Password Resource
+    #  Resets user's password using the OTP sent to email
+class ResetPasswordResource(Resource):
+        def post(self):
+            data = request.get_json()
+            email = data.get('email')
+            otp = data.get('otp')
+            new_password = data.get('new_password')
+            
+            # validate required fields
+            if not email or not otp or not new_password:
+                return {'message': 'Email, OTP and new password are required'}, 400
+            
+            # find user by email
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                return {'message': 'User not found'}, 404
+            
+            # check if OTP matches
+            if user.reset_code != otp:
+                return {'message': 'Invalid OTP code'}, 400
+            
+            # update password
+            user.password_hash = generate_password_hash(new_password)
+            user.reset_code = None  # clear reset code
+            db.session.commit()
+            return {
+                'Success': True,
+                'message': 'Password reset successfully, you can now login with your new password'
+            }, 200
