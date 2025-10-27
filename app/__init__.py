@@ -54,6 +54,7 @@ def create_app():
     # Import and register resources
     from app.resources.auth_resource import RegisterResource, VerifyUserResource, LoginResource, ForgotPasswordResource, ResetPasswordResource
     from app.resources.user_resource import UserProfileResource
+    from app.resources.product_resource import ProductListResource, ProductDetailResource
     
     
     api = Api(app)
@@ -67,6 +68,10 @@ def create_app():
     
     # User Resource
     api.add_resource(UserProfileResource, '/user/profile')
+    
+    # Product Resource
+    api.add_resource(ProductListResource, '/products')
+    api.add_resource(ProductDetailResource, '/products/<int:product_id>')
     
     
     return app
