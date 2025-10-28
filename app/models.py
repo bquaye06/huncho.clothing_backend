@@ -62,7 +62,6 @@ class Order(db.Model):
     total_amount = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(50), default='pending')
     payment_id = db.Column(db.BigInteger, db.ForeignKey('payment.payment_table.payment_id'), nullable=True)  # optional, maybe single payment
-    shipping_address = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -73,6 +72,7 @@ class Order(db.Model):
         lazy=True,
         foreign_keys='Payment.order_id'
     )
+    items = db.relationship("OrderItem", backref="order", lazy=True, cascade="all, delete")
 
     def to_dict(self):
         return {
@@ -80,8 +80,33 @@ class Order(db.Model):
             "user_id": self.user_id,
             "total_amount": float(self.total_amount),
             "status": self.status,
-            "shipping_address": self.shipping_address,
             "created_at": self.created_at.isoformat(),
+            "items": [item.to_dict() for item in self.items]
+        }
+
+
+# -------------------------
+# OrderItem Model
+# -------------------------
+class OrderItem(db.Model):
+    __tablename__ = 'order_items'
+    
+    order_items_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_table.order_id', ondelete='CASCADE'), nullable=False)
+    product_id = db.Column(db.BigInteger, db.ForeignKey('products.products_table.product_id', ondelete='CASCADE'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
+    
+    # relationship
+    product = db.relationship('Product', backref='order_items', lazy=True)
+    
+    def to_dict(self):
+        return{
+            "item_id": self.order_items_id,
+            "order_id": self.order_id,
+            "product_id": self.product_id,
+            "quantity": self.quantity,
+            "price": float(self.price),
         }
 
 # -------------------------
@@ -187,8 +212,20 @@ class CartItem(db.Model):
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.users_table.user_id', ondelete='CASCADE'), nullable=False)
     product_id = db.Column(db.BigInteger, db.ForeignKey('products.products_table.product_id', ondelete='CASCADE'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
+    price_at_time = db.Column(db.Numeric(10, 2), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            "cart_item_id": self.cart_item_id,
+            "cart_id": self.cart_id,
+            "product_id": self.product_id,
+            "quantity": self.quantity,
+            "price_at_time": float(self.price_at_time),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 # -------------------------

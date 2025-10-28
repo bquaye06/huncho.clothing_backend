@@ -1,4 +1,4 @@
-from flask import Flask, app
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import timedelta
 from flask_mail import Mail
@@ -55,6 +55,7 @@ def create_app():
     from app.resources.auth_resource import RegisterResource, VerifyUserResource, LoginResource, ForgotPasswordResource, ResetPasswordResource
     from app.resources.user_resource import UserProfileResource
     from app.resources.product_resource import ProductListResource, ProductDetailResource
+    from app.resources.cart_resource import CartResource, AddToCartResource,UpdateCartResource, RemoveFromCartResource, ClearCartResource
     
     
     api = Api(app)
@@ -73,5 +74,11 @@ def create_app():
     api.add_resource(ProductListResource, '/products')
     api.add_resource(ProductDetailResource, '/products/<int:product_id>')
     
+    # Cart Resource
+    api.add_resource(CartResource, '/cart')
+    api.add_resource(AddToCartResource, '/cart/add')
+    api.add_resource(UpdateCartResource, '/cart/update/<int:cart_item_id>')
+    api.add_resource(RemoveFromCartResource, '/cart/remove/<int:cart_item_id>') 
+    api.add_resource(ClearCartResource, '/cart/clear')
     
     return app
