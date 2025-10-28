@@ -182,9 +182,54 @@ class CartItem(db.Model):
         {'schema': 'cart'}
     )
 
-    cart_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    cart_item_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    cart_id =  db.Column(db.BigInteger, db.ForeignKey('cart.carts.cart_id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.users_table.user_id', ondelete='CASCADE'), nullable=False)
     product_id = db.Column(db.BigInteger, db.ForeignKey('products.products_table.product_id', ondelete='CASCADE'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# -------------------------
+# Cart Model
+# -------------------------
+class Cart(db.Model):
+    __tablename__ = 'carts'
+    __table_args__={'schema':'cart'}
+    
+    cart_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.users_table.user_id', ondelete='CASCADE'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+        # relationships
+    user = db.relationship("User", backref=db.backref("cart", uselist=False))
+    items = db.relationship(
+        "CartItem",
+        backref="cart",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    def to_dict(self):
+        return {
+            "cart_id": self.cart_id,
+            "user_id": self.user_id,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "items": [item.to_dict() for item in self.items],
+            "total": float(self.total() or 0.0)
+        }
+
+    def total(self):
+        """Compute cart total from item price_at_time * quantity."""
+        total = 0
+        for item in self.items:
+            # price_at_time is Decimal/Decimal-like; cast to float safely
+            total += float(item.price_at_time) * item.quantity
+        return round(total, 2)
+
+    

@@ -27,11 +27,11 @@ class ProductListResource(Resource):
             query = query.filter(Product.brand.ilike(f"%{brand}%"))
         if color:
             query = query.filter(Product.color.ilike(f"%{color}%"))
-            
+
         products = query.all()
-        return {'products':[Product.to_dict() for p in products]}, 200
-    
-    @jwt_required  # for admins only
+        return {'products': [p.to_dict() for p in products]}, 200
+
+    @jwt_required()
     def post(self):
         """
         create new products (admins only)
@@ -62,45 +62,46 @@ class ProductListResource(Resource):
         )
         db.session.add(new_product)
         db.session.commit()
+        return {'message': 'Product created', 'product': new_product.to_dict()}, 201
 
 class ProductDetailResource(Resource):
     @jwt_required(optional=True)
-    def get(self):
+    def get(self, product_id):
         """
         Get a specific product
         """
-        product = Product.query.get(Product.product_id)
+        product = Product.query.get(product_id)
         if not product:
             return {'message': "Product not found"}, 404
-        return Product.to_dict(), 200
-    
+        return product.to_dict(), 200
+
     @jwt_required()
-    def put(self):
+    def put(self, product_id):
         """
         Only admins can update products
         """
-        product = Product.query.get(Product.product_id)
+        product = Product.query.get(product_id)
         if not product:
             return {'message': "Product not found"}, 404
-        
-        data = request.get_json()
-        
+
+        data = request.get_json() or {}
+
         for key, value in data.items():
             if hasattr(product, key):
-                setattr(product,key,value)
-                
+                setattr(product, key, value)
+
         db.session.commit()
-        return{'message': 'Product updated successfully.', "product": Product.to_dict()}, 200
-    
-    @jwt_required
-    def delete(self):
+        return {'message': 'Product updated successfully.', "product": product.to_dict()}, 200
+
+    @jwt_required()
+    def delete(self, product_id):
         """
         only admins can delete products
         """
-        product = Product.query.filter_by(Product.product_id)
+        product = Product.query.get(product_id)
         if not product:
             return {"message": "Product not found"}, 404
-        
+
         db.session.delete(product)
         db.session.commit()
-        return{"message" : "Product deleted successfully"}, 200
+        return {"message": "Product deleted successfully"}, 200
