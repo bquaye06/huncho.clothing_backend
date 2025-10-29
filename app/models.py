@@ -28,7 +28,7 @@ class User(db.Model):
 
     # Relationships
     orders = db.relationship('Order', backref='user', lazy=True)
-    payments = db.relationship('Payment', backref='user', lazy=True)
+    # payments = db.relationship('Payment', backref='user', lazy=True)
     cart_items = db.relationship('CartItem', backref='user', lazy=True)
 
     # Password methods
@@ -118,21 +118,18 @@ class Payment(db.Model):
 
     payment_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_table.order_id'), nullable=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.users_table.user_id', ondelete='CASCADE'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
+    reference = db.Column(db.String(150), unique=True, nullable=False)
     status = db.Column(db.String(50), default='pending')
-    payment_method = db.Column(db.String(50), nullable=True)
-    transaction_id = db.Column(db.String(150), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             "payment_id": self.payment_id,
             "order_id": self.order_id,
-            "user_id": self.user_id,
             "amount": float(self.amount),
+            "reference": self.reference,
             "status": self.status,
-            "payment_method": self.payment_method,
             "created_at": self.created_at.isoformat(),
         }
 

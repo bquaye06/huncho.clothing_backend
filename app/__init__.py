@@ -42,6 +42,11 @@ def create_app():
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
     
+    # Payment Configuration
+    app.config['PAYSTACK_SECRET_KEY'] = os.getenv('PAYSTACK_SECRET_KEY')
+    app.config['PAYSTACK_PUBLIC_KEY'] = os.getenv('PAYSTACK_PUBLIC_KEY')
+    app.config['PAYSTACK_BASE_URL'] = os.getenv('PAYSTACK_BASE_URL', "https://api.paystack.co")
+    
     # Initialize extensions
     db.init_app(app)
     mail.init_app(app)
@@ -56,7 +61,8 @@ def create_app():
     from app.resources.user_resource import UserProfileResource
     from app.resources.product_resource import ProductListResource, ProductDetailResource
     from app.resources.cart_resource import CartResource, AddToCartResource,UpdateCartResource, RemoveFromCartResource, ClearCartResource
-    
+    from app.resources.orders_resource import OrderListResource, OrderDetailResource,OrderPaymentupdateResource
+    from app.resources.payment_resource import InitializePaymentResource,VerifyPaymentResource, PaystackWebhookResource
     
     api = Api(app)
     
@@ -80,5 +86,15 @@ def create_app():
     api.add_resource(UpdateCartResource, '/cart/update/<int:cart_item_id>')
     api.add_resource(RemoveFromCartResource, '/cart/remove/<int:cart_item_id>') 
     api.add_resource(ClearCartResource, '/cart/clear')
+    
+    # Orders Resource
+    api.add_resource(OrderListResource, '/orders')
+    api.add_resource(OrderDetailResource, '/orders/<int:order_id>')
+    api.add_resource(OrderPaymentupdateResource, '/orders/payment-update')
+    
+    # Payment Resource
+    api.add_resource(InitializePaymentResource, '/checkout')
+    api.add_resource(VerifyPaymentResource, '/verify/<string:reference>')
+    api.add_resource(PaystackWebhookResource, '/payment/webhook')
     
     return app
