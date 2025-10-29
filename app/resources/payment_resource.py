@@ -2,14 +2,22 @@ import os
 import requests
 from flask import request
 from flask_restful import Resource
-from app.models import db, Order, Payment 
+from app.models import db, Order, Payment
+from app.utils.validators import validate_json 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 
 load_dotenv()
 PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
 PAYSTACK_BASE_URL = os.getenv('PAYSTACK_BASE_URL', "https://api.paystack.co")
+limiter = Limiter(
+    key_func=get_remote_address
+)
 
 class InitializePaymentResource(Resource):
+    @validate_json(['order_id', 'email'])
+    @limiter.limit("5 per minute")
     def post(self):
         data = request.get_json()
         order_id = data.get('order_id')
@@ -56,6 +64,8 @@ class InitializePaymentResource(Resource):
             return {"message": "Failed to initialize payment", "error": data}, 400
 
 class VerifyPaymentResource(Resource):
+    @validate_json(['reference'])
+    @limiter.limit("5 per minute")
     def get(self, reference):
         headers={
             "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"
@@ -72,6 +82,8 @@ class VerifyPaymentResource(Resource):
         return {"message": "Payment verification failed", "error": data}, 400
     
 class PaystackWebhookResource(Resource):
+    @validate_json(['event'])
+    @limiter.limit("5 per minute")
     def post(self):
         event = request.get_json()
         if not event:

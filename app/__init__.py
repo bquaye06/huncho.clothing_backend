@@ -6,6 +6,8 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_restful import Api
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 
 import os
@@ -19,7 +21,17 @@ migrate = Migrate()
 def create_app():
     load_dotenv()
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, resources={r"/*": {"origins": "*"}})
+    
+    limter = Limiter(
+        key_func=get_remote_address,
+        app=app,
+        default_limits=["200 per day", "50 per hour"]
+    )
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        return {"message": "ratelimit exceeded %s" % e.description}, 429
+    
     
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=3)  # Access token lasts 3 days
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)  # Refresh token lasts 30 days

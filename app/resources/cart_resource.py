@@ -2,10 +2,19 @@ from flask import request
 from flask_restful import Resource
 from app.models import db, Cart, CartItem, Product, User
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from app.utils.validators import validate_json
 from datetime import datetime
+
+limiter = Limiter(
+    key_func=get_remote_address
+)
 
 class CartResource(Resource):
     @jwt_required()
+    @validate_json(["user_id"])
+    @limiter.limit("5 per minute")
     def get(self):
         """
         Get the current user's active cart
@@ -23,6 +32,8 @@ class CartResource(Resource):
 
 class AddToCartResource(Resource):
     @jwt_required()
+    @validate_json(["product_id", "quantity"])
+    @limiter.limit("5 per minute")
     def post(self):
         """"
         Add items to current user's cart or increase if it exists already
@@ -65,6 +76,8 @@ class AddToCartResource(Resource):
 
 class UpdateCartResource(Resource):
     @jwt_required()
+    @validate_json(["quantity"])
+    @limiter.limit("5 per minute")
     def put(self, cart_item_id):
         """
         Update the quantity of a specific item in the cart by cart_item_id
@@ -100,6 +113,8 @@ class UpdateCartResource(Resource):
 
 class RemoveFromCartResource(Resource):
     @jwt_required()
+    @validate_json(["cart_item_id"])
+    @limiter.limit("5 per minute")
     def delete(self, cart_item_id):
         """
         Remove a specific item from the user's cart
@@ -121,6 +136,8 @@ class RemoveFromCartResource(Resource):
 
 class ClearCartResource(Resource):
     @jwt_required()
+    @validate_json(["user_id"])
+    @limiter.limit("5 per minute")  
     def delete(self):
         """
         Clear all items from the user's active cart.

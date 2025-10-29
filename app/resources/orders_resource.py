@@ -2,9 +2,18 @@ from flask_restful import Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Order, OrderItem, Product
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from app.utils.validators import validate_json
+
+limiter = Limiter(
+    key_func=get_remote_address
+)
 
 class OrderListResource(Resource):
     @jwt_required()
+    @validate_json(["user_id"])
+    @limiter.limit("5 per minute")
     def get(self):
         """
         Get all orders firm current user
@@ -14,6 +23,8 @@ class OrderListResource(Resource):
         return{'orders': [o.to_dict() for o in orders]}, 200
     
     @jwt_required()
+    @validate_json(["items"])
+    @limiter.limit("5 per minute")
     def post(self):
         """
         Create a new order from the current user's cart(Checkout)
@@ -83,6 +94,8 @@ class OrderListResource(Resource):
 
 class OrderDetailResource(Resource):
     @jwt_required()
+    @validate_json(["order_id"])
+    @limiter.limit("5 per minute")
     def get(self, order_id):
         """
     Get details of a specific order
@@ -94,6 +107,8 @@ class OrderDetailResource(Resource):
         return {"order": order.to_dict()}, 200
 
 class OrderPaymentupdateResource(Resource):
+    @validate_json(["order_id", "status"])
+    @limiter.limit("5 per minute")
     def post(self):
         """
         Paystack webhook to update order payment status

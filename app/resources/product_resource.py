@@ -1,13 +1,22 @@
 from flask import request
 from flask_restful import Resource
 from app.models import db, Product, Category
+from app.utils.validators import validate_json
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_jwt_extended import jwt_required
+
+limiter = Limiter(
+    key_func=get_remote_address
+)
 
 # This is an admin only resource
 
 # Product List Resource
 class ProductListResource(Resource):
     @jwt_required(optional=True)
+    @validate_json(['categories_id'])
+    @limiter.limit("5 per minute")
     def get(self):
         """
         Get all products with optional filtering
@@ -32,6 +41,8 @@ class ProductListResource(Resource):
         return {'products': [p.to_dict() for p in products]}, 200
 
     @jwt_required()
+    @validate_json(['name', 'price'])
+    @limiter.limit("5 per minute")
     def post(self):
         """
         create new products (admins only)
@@ -66,6 +77,8 @@ class ProductListResource(Resource):
 
 class ProductDetailResource(Resource):
     @jwt_required(optional=True)
+    @validate_json(['product_id'])
+    @limiter.limit("5 per minute")
     def get(self, product_id):
         """
         Get a specific product
@@ -76,6 +89,7 @@ class ProductDetailResource(Resource):
         return product.to_dict(), 200
 
     @jwt_required()
+
     def put(self, product_id):
         """
         Only admins can update products
@@ -94,6 +108,8 @@ class ProductDetailResource(Resource):
         return {'message': 'Product updated successfully.', "product": product.to_dict()}, 200
 
     @jwt_required()
+    @validate_json(['product_id'])
+    @limiter.limit("5 per minute")
     def delete(self, product_id):
         """
         only admins can delete products

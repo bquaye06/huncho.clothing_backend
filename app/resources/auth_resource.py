@@ -6,13 +6,22 @@ from flask_jwt_extended import create_access_token, create_refresh_token
 from app.models import db, User
 from flask_mail import Message
 from app.utils.sms_service import send_sms
+from app.utils.validators import validate_json
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from app import mail
 from datetime import datetime
 import string
 import random
 
+limiter = Limiter(
+    key_func=get_remote_address
+)
+
 # Register new user
 class RegisterResource(Resource):
+    @validate_json(['username', 'email', 'password'])
+    @limiter.limit("5 per minute")
     def post(self):
         data = request.get_json()
         username = data.get('username')
@@ -99,6 +108,8 @@ class RegisterResource(Resource):
         
 # Verify User OTP
 class VerifyUserResource(Resource):
+        @validate_json(['email', 'otp'])
+        @limiter.limit('5 per minute')
         def post(self):
             data = request.get_json()
             email = data.get('email')
@@ -136,6 +147,8 @@ class VerifyUserResource(Resource):
 
 # Login Resource with JWT tokens and OTP
 class LoginResource(Resource):
+    @validate_json(['email', 'password'])
+    @limiter.limit("3 per minute")
     def post(self):
         data = request.get_json()
         email = data.get('email')
@@ -165,6 +178,8 @@ class LoginResource(Resource):
         access_token = create_access_token(identity=str(user.user_id))
         refresh_token = create_refresh_token(identity=str(user.user_id))
         
+        # OTP section can be added here if needed for 2FA
+        
         # return success message if successfull
         return{
             'success': f'Login successful, Welcome back {user.username} ',
@@ -176,6 +191,7 @@ class LoginResource(Resource):
 # Forgot Password Resource
 # Sends reset OTP to user's email to reset password
 class ForgotPasswordResource(Resource):
+    @validate_json(['email'])
     def post(self):
         data = request.get_json()
         email = data.get('email') if data else None
@@ -228,6 +244,7 @@ class ForgotPasswordResource(Resource):
 # Reset Password Resource
     #  Resets user's password using the OTP sent to email
 class ResetPasswordResource(Resource):
+        @validate_json(['email', 'otp', 'new_password'])
         def post(self):
             data = request.get_json()
             email = data.get('email')
